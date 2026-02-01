@@ -5,176 +5,23 @@ import numpy as np
 from PIL import Image
 from typing import Tuple, Optional, List
 
-# Импорт MediaPipe с поддержкой старых и новых версий
-try:
-    import mediapipe as mp
-    _MEDIAPIPE_ERROR = None
-    
-    # Проверяем версию и доступность API
-    _use_tasks_api = False
-    _mp_face_detection = None
-    
-    # Проверяем старый API разными способами
-    _mp_face_detection = None
-    
-    # Способ 1: Стандартный mp.solutions
-    if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'face_detection'):
-        _mp_face_detection = mp.solutions.face_detection
-        _use_tasks_api = False
-    else:
-        # Способ 2: Прямой импорт из mediapipe.python.solutions
-        try:
-            from mediapipe.python.solutions import face_detection
-            _mp_face_detection = face_detection
-            _use_tasks_api = False
-        except (ImportError, AttributeError):
-            # Способ 3: Пробуем через mediapipe.solutions напрямую
-            try:
-                import mediapipe.solutions.face_detection as face_detection
-                _mp_face_detection = face_detection
-                _use_tasks_api = False
-            except (ImportError, AttributeError):
-                # Если ничего не работает, НЕ используем Tasks API
-                # Вместо этого будет использован fallback на OpenCV
-                _use_tasks_api = False
-                _mp_face_detection = None
-                
-except ImportError as e:
-    mp = None
-    _mp_face_detection = None
-    _use_tasks_api = False
-    _MEDIAPIPE_ERROR = f"MediaPipe не установлен: {e}\nУстановите: pip install mediapipe"
-
 
 class FaceCropper:
     """Класс для детекции лица и расчета квадратного кропа."""
     
-    def _download_face_detector_model(self) -> str:
-        """Скачивает модель face_detector если нужно."""
-        # Для упрощения, возвращаем None - MediaPipe должен использовать встроенную модель
-        # В реальности можно добавить автоматическую загрузку модели
-        return None
-    
     def __init__(self):
-        """Инициализация детектора лиц."""
-        # Инициализируем fallback флаг
-        self.use_opencv_fallback = False
-        self.face_cascade = None
-        
-        # Проверка установки MediaPipe
-        if mp is None:
-            # Если MediaPipe не установлен, используем OpenCV
-            print("⚠ MediaPipe не установлен, используем OpenCV для детекции лиц")
-            self.use_opencv_fallback = True
-            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-            if self.face_cascade.empty():
-                self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml')
-            return
-        
-        self.use_tasks_api = _use_tasks_api
-        
-        if self.use_tasks_api:
-            # Новый Tasks API (MediaPipe >= 0.10.31)
-            try:
-                import os
-                from pathlib import Path
-                
-                BaseOptions = _mp_tasks.BaseOptions
-                FaceDetectorOptions = _mp_vision.FaceDetectorOptions
-                VisionRunningMode = _mp_vision.RunningMode
-                FaceDetector = _mp_vision.FaceDetector
-                
-                # Пытаемся найти модель в установке MediaPipe
-                model_path = None
-                try:
-                    import mediapipe
-                    mp_path = Path(mediapipe.__file__).parent
-                    # Ищем модель в стандартных местах
-                    possible_paths = [
-                        mp_path / "models" / "face_detector.task",
-                        mp_path / "face_detector.task",
-                    ]
-                    for path in possible_paths:
-                        if path.exists():
-                            model_path = str(path)
-                            break
-                except:
-                    pass
-                
-                # В новом Tasks API нужен файл модели
-                # Пробуем использовать встроенную модель или скачать
-                if model_path is None:
-                    # Пробуем создать без модели (может не работать)
-                    try:
-                        # Используем модель по умолчанию через специальный путь
-                        # MediaPipe может иметь встроенную модель
-                        options = FaceDetectorOptions(
-                            base_options=BaseOptions(),
-                            running_mode=VisionRunningMode.IMAGE,
-                            min_detection_confidence=0.5
-                        )
-                        self.face_detector = FaceDetector.create_from_options(options)
-                    except Exception as model_error:
-                        # Если не работает, предлагаем установить старую версию
-                        raise ImportError(
-                            f"MediaPipe 0.10.31 требует файл модели для Tasks API.\n"
-                            f"Ошибка: {model_error}\n\n"
-                            f"Решение: Установите старую версию MediaPipe с Solutions API:\n"
-                            f"pip uninstall mediapipe\n"
-                            f"pip install mediapipe==0.10.30"
-                        )
-                else:
-                    options = FaceDetectorOptions(
-                        base_options=BaseOptions(model_asset_path=model_path),
-                        running_mode=VisionRunningMode.IMAGE,
-                        min_detection_confidence=0.5
-                    )
-                    self.face_detector = FaceDetector.create_from_options(options)
-            except Exception as e:
-                raise ImportError(
-                    f"Ошибка инициализации MediaPipe Tasks API: {e}\n"
-                    f"Версия MediaPipe: {getattr(mp, '__version__', 'неизвестна')}\n"
-                    "Попробуйте:\n"
-                    "1. pip install --upgrade mediapipe\n"
-                    "2. Или используйте старую версию: pip install mediapipe==0.10.30"
-                )
-        else:
-            # Старый Solutions API (MediaPipe < 0.10.31)
-            if _mp_face_detection is None:
-                # Пробуем еще раз прямой импорт
-                try:
-                    from mediapipe.python.solutions import face_detection
-                    self.mp_face_detection = face_detection
-                except (ImportError, AttributeError):
-                    # Если MediaPipe не работает, используем OpenCV как fallback
-                    print("⚠ MediaPipe Solutions API недоступен, используем OpenCV для детекции лиц")
-                    self.use_opencv_fallback = True
-                    self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-                    if self.face_cascade.empty():
-                        # Пробуем альтернативный путь
-                        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml')
-                    return  # Выходим из __init__, используем OpenCV
-            else:
-                self.mp_face_detection = _mp_face_detection
-            
-            self.use_opencv_fallback = False
-            try:
-                self.face_detection = self.mp_face_detection.FaceDetection(
-                    model_selection=1,  # 0 для ближних лиц, 1 для дальних
-                    min_detection_confidence=0.5
-                )
-            except Exception as e:
-                # Если инициализация не удалась, используем OpenCV
-                print(f"⚠ Ошибка инициализации MediaPipe: {e}")
-                print("⚠ Используем OpenCV для детекции лиц")
-                self.use_opencv_fallback = True
-                self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-                if self.face_cascade.empty():
-                    self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml')
+        """Инициализация детектора лиц (OpenCV Haar Cascades)."""
+        self.face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        )
+        if self.face_cascade.empty():
+            self.face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml'
+            )
     
     def detect_face(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
         """
-        Детектирует лицо на изображении.
+        Детектирует лицо на изображении с помощью OpenCV Haar Cascades.
         
         Args:
             image: Изображение в формате BGR (OpenCV)
@@ -182,80 +29,6 @@ class FaceCropper:
         Returns:
             Tuple (x, y, width, height) bounding box лица или None
         """
-        h, w = image.shape[:2]
-        
-        # Используем OpenCV fallback если MediaPipe недоступен
-        if hasattr(self, 'use_opencv_fallback') and self.use_opencv_fallback:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            faces = self.face_cascade.detectMultiScale(
-                gray,
-                scaleFactor=1.1,
-                minNeighbors=5,
-                minSize=(30, 30)
-            )
-            if len(faces) > 0:
-                # Берем самое большое лицо
-                face = max(faces, key=lambda f: f[2] * f[3])
-                x, y, width, height = face
-                return (x, y, width, height)
-            return None
-        
-        if self.use_tasks_api:
-            # Новый Tasks API
-            try:
-                # Конвертируем BGR в RGB
-                rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                # Создаем MediaPipe Image
-                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
-                # Детектируем
-                detection_result = self.face_detector.detect(mp_image)
-                
-                if not detection_result.detections:
-                    return None
-                
-                # Берем первое обнаруженное лицо
-                detection = detection_result.detections[0]
-                bbox = detection.bounding_box
-                
-                x = bbox.origin_x
-                y = bbox.origin_y
-                width = bbox.width
-                height = bbox.height
-                
-                return (x, y, width, height)
-            except Exception as e:
-                # Fallback на OpenCV если что-то пошло не так
-                return self._detect_face_opencv(image)
-        else:
-            # Старый Solutions API
-            try:
-                rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                results = self.face_detection.process(rgb_image)
-                
-                if not results.detections:
-                    return None
-                
-                # Берем первое обнаруженное лицо
-                detection = results.detections[0]
-                bbox = detection.location_data.relative_bounding_box
-                
-                x = int(bbox.xmin * w)
-                y = int(bbox.ymin * h)
-                width = int(bbox.width * w)
-                height = int(bbox.height * h)
-                
-                return (x, y, width, height)
-            except Exception:
-                # Fallback на OpenCV если MediaPipe не работает
-                return self._detect_face_opencv(image)
-    
-    def _detect_face_opencv(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
-        """Детекция лица через OpenCV (fallback)."""
-        if not hasattr(self, 'face_cascade') or self.face_cascade is None:
-            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-            if self.face_cascade.empty():
-                self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml')
-        
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(
             gray,
