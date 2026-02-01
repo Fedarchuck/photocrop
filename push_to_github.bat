@@ -8,7 +8,7 @@ git status
 
 echo.
 echo === Коммит ===
-git commit -m "Удалён MediaPipe, детекция лиц только через OpenCV"
+git commit -m "Добавлена поддержка Render: чтение PORT из env и bind на 0.0.0.0"
 if errorlevel 1 (
   echo Нет изменений для коммита или ошибка коммита. Push пропущен.
   goto :end

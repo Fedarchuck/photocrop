@@ -197,8 +197,13 @@ def main():
     # Если запрошен UI - запускаем его
     if args.ui:
         from .ui import launch_ui
+        
+        # Для Render: читаем PORT из env и используем 0.0.0.0
+        port = int(os.environ.get("PORT", args.port))
+        host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
+        
         try:
-            launch_ui(server_port=args.port)
+            launch_ui(server_name=host, server_port=port)
         except KeyboardInterrupt:
             print("\n\nСервер остановлен.")
         return
