@@ -12,17 +12,18 @@ from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 
-# Gradio тянет много data/hidden imports — собираем автоматически
+# Gradio и safehttpx тянут data/hidden imports — собираем автоматически
 gradio_datas, gradio_binaries, gradio_hiddenimports = collect_all("gradio")
+safehttpx_datas, safehttpx_binaries, safehttpx_hiddenimports = collect_all("safehttpx")
 
 a = Analysis(
     ["facecrop_launcher.py"],
     pathex=[],
-    binaries=gradio_binaries,
-    datas=gradio_datas + [
+    binaries=gradio_binaries + safehttpx_binaries,
+    datas=gradio_datas + safehttpx_datas + [
         ("fonts/Inter_24pt-Regular.ttf", "fonts"),
     ],
-    hiddenimports=gradio_hiddenimports,
+    hiddenimports=gradio_hiddenimports + safehttpx_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
