@@ -6,10 +6,12 @@
 
 from __future__ import annotations
 
+import io
 import socket
 import threading
 import time
 import webbrowser
+import sys
 from dataclasses import dataclass
 
 
@@ -41,6 +43,22 @@ def _open_browser_later(url: str, delay_s: float) -> None:
 
 
 def main() -> None:
+    # В режиме без консоли stdout/stderr могут быть None -> Uvicorn падает.
+    class _DummyIO(io.TextIOBase):
+        def write(self, s):  # type: ignore[override]
+            return len(s)
+
+        def flush(self):  # type: ignore[override]
+            pass
+
+        def isatty(self):  # type: ignore[override]
+            return False
+
+    if sys.stdout is None:
+        sys.stdout = _DummyIO()  # type: ignore[assignment]
+    if sys.stderr is None:
+        sys.stderr = _DummyIO()  # type: ignore[assignment]
+
     cfg = LaunchConfig()
     port = find_free_port(cfg.host, cfg.start_port, cfg.max_attempts)
     url = f"http://{cfg.host}:{port}"
