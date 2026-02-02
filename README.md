@@ -48,6 +48,17 @@ python -m facecrop --input photo.jpg --output output/
 python -m facecrop --ui
 ```
 
+## Windows (для обычных пользователей)
+
+Если пользователям сложно устанавливать Python, используйте готовый `FaceCrop.exe`:
+
+1. Скачайте `FaceCrop-Windows.zip` из GitHub (Releases или Artifacts).
+2. Распакуйте.
+3. Запустите `FaceCrop.exe` двойным кликом.
+4. Откроется браузер с UI.
+
+Подробности сборки: `BUILD_WINDOWS_EXE.md`.
+
 ## Использование
 
 ### CLI интерфейс

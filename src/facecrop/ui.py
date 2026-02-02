@@ -104,7 +104,12 @@ def process_images_ui(
         return f"Критическая ошибка: {str(e)}\n\n{traceback.format_exc()}", []
 
 
-def launch_ui(share: bool = False, server_name: str = "127.0.0.1", server_port: int = 7860):
+def launch_ui(
+    share: bool = False,
+    server_name: str = "127.0.0.1",
+    server_port: int = 7860,
+    inbrowser: bool = False,
+):
     """Запускает Gradio UI."""
     import socket
     
@@ -131,22 +136,28 @@ def launch_ui(share: bool = False, server_name: str = "127.0.0.1", server_port: 
             print(f"Попробуйте указать другой порт: python -m facecrop --ui --port 8000")
             raise OSError(f"Не удалось найти свободный порт")
     
-    # Получаем путь к шрифту
+    # Кастомный шрифт (опционально). В packaged/.exe окружениях файла может не быть.
     fonts_dir = Path(__file__).parent.parent.parent / "fonts"
     font_path = fonts_dir / "Inter_24pt-Regular.ttf"
-    
-    # CSS для загрузки кастомного шрифта и скрытия ненужных кнопок
+
+    font_css = ""
+    if font_path.exists():
+        font_css = f"""
+        @font-face {{
+            font-family: 'Inter';
+            src: url('{font_path.absolute().as_uri()}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }}
+
+        * {{
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        }}
+        """
+
+    # CSS для скрытия ненужных кнопок
     custom_css = f"""
-    @font-face {{
-        font-family: 'Inter';
-        src: url('{font_path.absolute().as_uri()}') format('truetype');
-        font-weight: normal;
-        font-style: normal;
-    }}
-    
-    * {{
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    }}
+    {font_css}
     
     body, .gradio-container {{
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
@@ -577,12 +588,18 @@ def launch_ui(share: bool = False, server_name: str = "127.0.0.1", server_port: 
     
     try:
         print("Запуск сервера...")
+        # Очередь помогает на слабых хостингах/при батч-обработке
+        try:
+            demo.queue(concurrency_count=1)
+        except Exception:
+            pass
+
         demo.launch(
             share=share,
             server_name=server_name if server_name else "127.0.0.1",
             server_port=server_port,
             show_error=True,
-            inbrowser=False,
+            inbrowser=inbrowser,
             theme=gr.themes.Monochrome(),
             css=custom_css
         )

@@ -10,7 +10,6 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "mediapipe>=0.10.0",
         "Pillow>=10.0.0",
         "opencv-python>=4.8.0",
         "numpy>=1.24.0",
