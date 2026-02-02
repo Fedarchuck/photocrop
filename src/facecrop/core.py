@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from PIL import Image
 from typing import Tuple, Optional, List
+from pathlib import Path
+import sys
 
 
 class FaceCropper:
@@ -11,13 +13,36 @@ class FaceCropper:
     
     def __init__(self):
         """Инициализация детектора лиц (OpenCV Haar Cascades)."""
-        self.face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-        )
-        if self.face_cascade.empty():
-            self.face_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml'
-            )
+        self.face_cascade = self._load_haar_cascade()
+
+    def _load_haar_cascade(self) -> cv2.CascadeClassifier:
+        """Ищет и загружает Haar каскад из возможных путей."""
+        filenames = [
+            "haarcascade_frontalface_default.xml",
+            "haarcascade_frontalface_alt.xml",
+        ]
+
+        candidates = []
+        # Стандартный путь OpenCV
+        if hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
+            candidates.append(Path(cv2.data.haarcascades))
+
+        # PyInstaller onefile: файлы могут лежать в _MEIPASS
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / "cv2" / "data" / "haarcascades")
+            candidates.append(Path(meipass) / "haarcascades")
+
+        for base in candidates:
+            for name in filenames:
+                path = base / name
+                if path.exists():
+                    cascade = cv2.CascadeClassifier(str(path))
+                    if not cascade.empty():
+                        return cascade
+
+        # Пустой классификатор, чтобы не падать при detectMultiScale
+        return cv2.CascadeClassifier()
     
     def detect_face(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
         """
@@ -29,6 +54,8 @@ class FaceCropper:
         Returns:
             Tuple (x, y, width, height) bounding box лица или None
         """
+        if self.face_cascade is None or self.face_cascade.empty():
+            return None
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(
             gray,

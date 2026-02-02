@@ -25,6 +25,7 @@ starlette_datas, starlette_binaries, starlette_hiddenimports = collect_all("star
 jinja2_datas, jinja2_binaries, jinja2_hiddenimports = collect_all("jinja2")
 python_multipart_datas, python_multipart_binaries, python_multipart_hiddenimports = collect_all("python_multipart")
 orjson_datas, orjson_binaries, orjson_hiddenimports = collect_all("orjson")
+cv2_datas, cv2_binaries, cv2_hiddenimports = collect_all("cv2")
 
 a = Analysis(
     ["facecrop_launcher.py"],
@@ -42,6 +43,7 @@ a = Analysis(
         + jinja2_binaries
         + python_multipart_binaries
         + orjson_binaries
+        + cv2_binaries
     ),
     datas=(
         gradio_datas
@@ -56,6 +58,7 @@ a = Analysis(
         + jinja2_datas
         + python_multipart_datas
         + orjson_datas
+        + cv2_datas
         + [
         ("fonts/Inter_24pt-Regular.ttf", "fonts"),
     ]
@@ -73,6 +76,7 @@ a = Analysis(
         + jinja2_hiddenimports
         + python_multipart_hiddenimports
         + orjson_hiddenimports
+        + cv2_hiddenimports
     ),
     hookspath=[],
     hooksconfig={},
